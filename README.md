@@ -34,10 +34,76 @@ $ nixflake-check /etc/nixos
 ## Requirements
 
 - Linux with Nix **2.19+** and flakes enabled (`nix-command` + `flakes`)
-- Python **3.10+**
+- Python **3.10+** (only for the `pip` install; the flake provides its own)
 - Network access to the flake inputs on first run (the result is cached by Nix)
 
-## Install
+## Use as a flake input
+
+Add the flake to your inputs and enable the NixOS module:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixflake-checker.url = "github:CeliaMeow2333/nixflake-update-checker";
+  };
+
+  outputs = { self, nixpkgs, nixflake-checker, ... }: {
+    nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
+      modules = [
+        nixflake-checker.nixosModules.default
+        { programs.nixflake-check.enable = true; }
+      ];
+    };
+  };
+}
+```
+
+After `nixos-rebuild switch`, run:
+
+```bash
+nixflake-check /etc/nixos
+```
+
+The input name (`nixflake-checker`) is up to you — use whatever you put in
+`inputs`.
+
+### Run or install without touching your configuration
+
+```bash
+nix run github:CeliaMeow2333/nixflake-update-checker -- /etc/nixos
+nix profile install github:CeliaMeow2333/nixflake-update-checker
+```
+
+### Overlay
+
+```nix
+{
+  nixpkgs.overlays = [ inputs.nixflake-checker.overlays.default ];
+  environment.systemPackages = [ pkgs.nixflake-check ];
+}
+```
+
+### Exposed flake outputs
+
+| Output | Description |
+| --- | --- |
+| `packages.<system>.default` / `.nixflake-check` | The `nixflake-check` CLI |
+| `apps.<system>.default` / `.nixflake-check` | `nix run` entry point |
+| `nixosModules.default` | Adds `programs.nixflake-check.{enable,package}` |
+| `overlays.default` | Adds `pkgs.nixflake-check` |
+| `devShells.<system>.default` | Python, pytest, rich and nix for development |
+| `checks.<system>.default` | Builds the package (tests run in `checkPhase`) |
+
+### Nix development shell
+
+```bash
+nix develop
+pytest
+nix build .#
+```
+
+## Install with pip
 
 ```bash
 cd nixflake-update-checker
@@ -64,6 +130,7 @@ nixflake-check --host myhost --all
 nixflake-check --json report.json --markdown report.md
 nixflake-check --only nixpkgs         # update a single input only
 nixflake-check --exit-code            # exit 10 when updates are available
+nix run github:CeliaMeow2333/nixflake-update-checker -- /etc/nixos
 ```
 
 | Option | Meaning |

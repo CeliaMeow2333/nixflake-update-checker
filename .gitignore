@@ -6,5 +6,7 @@ dist/
 .venv/
 .pytest_cache/
 .nixflake-check/
+result
+result-*
 report.json
 report.md
